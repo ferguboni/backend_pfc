@@ -30,14 +30,16 @@ async def fetch_news() -> List[NewsItem]:
         title = (a.get("title") or "").strip()
         link = a.get("url") or ""
         source = (a.get("source", {}) or {}).get("name") or ""
-        image = a.get("urlToImage") or ""   #pega a imagem da notícia
+        image = a.get("urlToImage") or ""
+        published_at = a.get("publishedAt") or ""
         if title and link:
             items.append(
                 NewsItem(
                     title=title,
                     link=link,
                     source=source,
-                    image=image  # adiciona no objeto
+                    image=image,
+                    published_at=published_at  # <- adiciona no objeto
                 )
             )
     return items

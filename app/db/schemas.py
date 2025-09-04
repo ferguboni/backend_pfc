@@ -61,3 +61,4 @@ class NewsItem(BaseModel):
     link: str
     source: str
     image: str | None = None
+    published_at: Optional[str] = None
