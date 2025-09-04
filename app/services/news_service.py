@@ -1,4 +1,4 @@
-#API Newsapi
+# API Newsapi
 
 from typing import List
 import httpx
@@ -23,12 +23,21 @@ async def fetch_news() -> List[NewsItem]:
         r = await client.get(NEWSAPI_URL, params=params, headers=headers)
         r.raise_for_status()
         data = r.json()
+
     articles = data.get("articles", []) or []
     items: List[NewsItem] = []
     for a in articles:
         title = (a.get("title") or "").strip()
         link = a.get("url") or ""
         source = (a.get("source", {}) or {}).get("name") or ""
+        image = a.get("urlToImage") or ""   #pega a imagem da notícia
         if title and link:
-            items.append(NewsItem(title=title, link=link, source=source))
+            items.append(
+                NewsItem(
+                    title=title,
+                    link=link,
+                    source=source,
+                    image=image  # <- adiciona no objeto
+                )
+            )
     return items
