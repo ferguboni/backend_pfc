@@ -37,7 +37,7 @@ async def fetch_news() -> List[NewsItem]:
                     title=title,
                     link=link,
                     source=source,
-                    image=image  # <- adiciona no objeto
+                    image=image  # adiciona no objeto
                 )
             )
     return items

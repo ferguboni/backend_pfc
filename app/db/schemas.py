@@ -60,3 +60,4 @@ class NewsItem(BaseModel):
     title: str
     link: str
     source: str
+    image: str | None = None
