@@ -1,7 +1,7 @@
 """
 Rotas de autenticação:
 - /auth/register: cria usuário com e-mail/senha
-- /auth/login: retorna token JWT
+- /auth/login: retorna token JWT AAAAAAAAAAAAAAAAAAAA
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
