@@ -13,7 +13,7 @@ load_dotenv()
 from app.core.config import settings
 from app.core.rate_limit import init_rate_limit
 from app.db.database import create_all
-from app.routers import auth, favorites, news, prices, newsletter
+from app.routers import auth, favorites, news, prices, newsletter, users
 from app.tasks.scheduler import start_scheduler, shutdown_scheduler
 
 @asynccontextmanager
@@ -49,3 +49,5 @@ app.include_router(newsletter.router)
 async def root():
     # Endpoint simples para ver se a API está no ar
     return {"ok": True, "message": "infoCripto API rodando"}
+
+app.include_router(users.router)

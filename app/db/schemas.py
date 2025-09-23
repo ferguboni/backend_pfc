@@ -62,3 +62,7 @@ class NewsItem(BaseModel):
     source: str
     image: str | None = None
     published_at: Optional[str] = None
+
+class UserListItem(BaseModel):
+    name: str | None
+    email: EmailStr
