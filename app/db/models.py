@@ -24,12 +24,18 @@ class PasswordReset(Base):
     __tablename__ = "password_resets"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
-    token_hash = Column(String(128), nullable=False, index=True)  # hash SHA-256 do token
-    expires_at = Column(DateTime(timezone=True), nullable=False)   # validade
-    used_at = Column(DateTime(timezone=True), nullable=True)       # preenchido quando usado
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    token_hash = Column(String(128), nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
 
     user = relationship("User")
+
 
 class Favorite(Base):
     __tablename__ = "favorites"
