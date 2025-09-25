@@ -6,6 +6,7 @@
 from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 import jwt
+import hashlib
 from app.core.config import settings
 
 # Configura o contexto de hashing de senhas
@@ -28,3 +29,14 @@ def create_access_token(subject: str) -> str:
 def decode_token(token: str) -> dict:
     "Decodifica e valida um token JWT."
     return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+#Cria Utilitario de Segurança
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+def verify_password(password: str, hashed: str) -> bool:
+    return pwd_context.verify(password, hashed)
+
+def sha256_hex(value: str) -> str:
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()

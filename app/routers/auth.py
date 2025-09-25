@@ -3,13 +3,19 @@ Rotas de autenticação:
 - /auth/register: cria usuário com e-mail/senha
 - /auth/login: retorna token JWT AAAAAAAAAAAAAAAAAAAA
 """
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import secrets
+from datetime import datetime, timedelta, timezone
+
+from fastapi import APIRouter, Depends, HTTPException,BackgroundTasks
 from sqlalchemy.orm import Session
 
 from app.db.database import get_db
+from app.db.models import User, PasswordReset
 from app.db import models
-from app.db.schemas import UserCreate, UserOut, TokenOut
-from app.core.security import hash_password, verify_password, create_access_token
+from app.db.schemas import UserCreate, UserOut, TokenOut, ForgotPasswordIn, ResetPasswordIn
+from app.core.security import hash_password, verify_password, create_access_token, sha256_hex
+from app.services.email import send_email
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -43,3 +49,64 @@ def login(payload: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
     token = create_access_token(str(user.id))
     return {"access_token": token}
+
+FRONTEND_RESET_URL = os.getenv("FRONTEND_RESET_URL", "http://localhost:3000/resetar-senha")
+RESET_TOKEN_TTL_MIN = int(os.getenv("RESET_TOKEN_TTL_MIN", "30"))  # 30 min padrão
+
+# --- ENDPOINT: solicitar reset (idempotente) ---
+@router.post("/forgot-password", summary="Solicitar reset de senha (sempre 200)")
+async def forgot_password(payload: ForgotPasswordIn, background: BackgroundTasks, db: Session = Depends(get_db)):
+    # sempre 200 para não vazar se e-mail existe
+    user = db.query(User).filter(User.email == payload.email).first()
+    if user:
+        raw_token = secrets.token_urlsafe(32)                # token enviado por e-mail
+        token_hash = sha256_hex(raw_token)                   # só o hash vai pro banco
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_TTL_MIN)
+
+        pr = PasswordReset(user_id=user.id, token_hash=token_hash, expires_at=expires_at)
+        db.add(pr)
+        db.commit()
+
+        link = f"{FRONTEND_RESET_URL}?token={raw_token}"
+        html = f"""
+        <p>Olá{f", {user.name}" if getattr(user, 'name', None) else ''}!</p>
+        <p>Use o link abaixo para redefinir sua senha (válido por {RESET_TOKEN_TTL_MIN} minutos):</p>
+        <p><a href="{link}">Redefinir senha</a></p>
+        <p>Se você não solicitou, ignore este e-mail.</p>
+        """
+        background.add_task(send_email, to=user.email, subject="Redefinição de senha", html=html)
+
+    return {"message": "Se o e-mail existir, enviaremos um link de redefinição."}
+
+# --- ENDPOINT: aplicar nova senha ---
+@router.post("/reset-password", summary="Aplicar nova senha a partir do token")
+async def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
+    now = datetime.now(timezone.utc)
+    token_hash = sha256_hex(payload.token)
+
+    pr = (
+        db.query(PasswordReset)
+        .filter(PasswordReset.token_hash == token_hash)
+        .filter(PasswordReset.used_at.is_(None))
+        .filter(PasswordReset.expires_at > now)
+        .first()
+    )
+    if not pr:
+        raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+
+    user = db.query(User).filter(User.id == pr.user_id).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Usuário não encontrado")
+
+    user.password_hash = hash_password(payload.new_password)
+    pr.used_at = now
+
+    # (opcional) invalidar demais tokens pendentes desse usuário
+    db.query(PasswordReset).filter(
+        PasswordReset.user_id == user.id,
+        PasswordReset.used_at.is_(None),
+        PasswordReset.id != pr.id,
+    ).update({PasswordReset.used_at: now})
+
+    db.commit()
+    return {"message": "Senha redefinida com sucesso"}

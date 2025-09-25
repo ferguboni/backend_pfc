@@ -3,7 +3,7 @@
 # Auth
 from typing import Optional, Any
 from uuid import UUID
-from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator,Field
 from datetime import datetime
 
 class UserCreate(BaseModel):
@@ -66,3 +66,12 @@ class NewsItem(BaseModel):
 class UserListItem(BaseModel):
     name: str | None
     email: EmailStr
+
+class ForgotPasswordIn(BaseModel):
+    email: EmailStr
+
+class ResetPasswordIn(BaseModel):
+    token: str = Field(min_length=10)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
