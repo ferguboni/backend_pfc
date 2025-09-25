@@ -16,6 +16,21 @@ class User(Base):
 
     favorites = relationship("Favorite", back_populates="user", cascade="all, delete-orphan")
 
+# app/db/models.py  (ADICIONE este bloco)
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.orm import relationship
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    token_hash = Column(String(128), nullable=False, index=True)  # hash SHA-256 do token
+    expires_at = Column(DateTime(timezone=True), nullable=False)   # validade
+    used_at = Column(DateTime(timezone=True), nullable=True)       # preenchido quando usado
+
+    user = relationship("User")
+
 class Favorite(Base):
     __tablename__ = "favorites"
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
