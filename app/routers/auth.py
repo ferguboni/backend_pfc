@@ -110,31 +110,42 @@ async def forgot_password(payload: ForgotPasswordIn, background: BackgroundTasks
 
 @router.post("/reset-password", summary="Aplicar nova senha a partir do token")
 async def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
-    now = datetime.now(timezone.utc)
-    token_hash = sha256_hex(payload.token)
+    try:
+        now = datetime.now(timezone.utc)
+        token_hash = sha256_hex(payload.token)
 
-    pr = (
-        db.query(PasswordReset)
-        .filter(PasswordReset.token_hash == token_hash)
-        .filter(PasswordReset.used_at.is_(None))
-        .filter(PasswordReset.expires_at > now)
-        .first()
-    )
-    if not pr:
-        raise HTTPException(status_code=400, detail="Token inválido ou expirado")
+        pr = (
+            db.query(PasswordReset)
+            .filter(PasswordReset.token_hash == token_hash)
+            .filter(PasswordReset.used_at.is_(None))
+            .filter(PasswordReset.expires_at > now)
+            .first()
+        )
+        if not pr:
+            raise HTTPException(status_code=400, detail="Token inválido ou expirado")
 
-    user = db.query(User).filter(User.id == pr.user_id).first()
-    if not user:
-        raise HTTPException(status_code=400, detail="Usuário não encontrado")
+        user = db.query(User).filter(User.id == pr.user_id).first()
+        if not user:
+            raise HTTPException(status_code=400, detail="Usuário não encontrado")
 
-    user.password_hash = hash_password(payload.new_password)
-    pr.used_at = now
+        # aplica nova senha
+        user.password_hash = hash_password(payload.new_password)
+        pr.used_at = now
 
-    db.query(PasswordReset).filter(
-        PasswordReset.user_id == user.id,
-        PasswordReset.used_at.is_(None),
-        PasswordReset.id != pr.id,
-    ).update({PasswordReset.used_at: now})
+        # invalida outros tokens pendentes
+        db.query(PasswordReset).filter(
+            PasswordReset.user_id == user.id,
+            PasswordReset.used_at.is_(None),
+            PasswordReset.id != pr.id,
+        ).update(
+            {PasswordReset.used_at: now},
+            synchronize_session=False,   # <- evita erro no SQLAlchemy 2.0
+        )
 
-    db.commit()
-    return {"message": "Senha redefinida com sucesso"}
+        db.commit()
+        return {"message": "Senha redefinida com sucesso"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao resetar senha: {str(e)}")
