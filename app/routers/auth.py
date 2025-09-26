@@ -112,7 +112,10 @@ async def forgot_password(payload: ForgotPasswordIn, background: BackgroundTasks
 async def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)):
     try:
         now = datetime.now(timezone.utc)
-        token_hash = sha256_hex(payload.token)
+
+        # sanitiza token para evitar chars invisíveis
+        token_plain = payload.token.strip()
+        token_hash = sha256_hex(token_plain)
 
         pr = (
             db.query(PasswordReset)
@@ -139,7 +142,7 @@ async def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)
             PasswordReset.id != pr.id,
         ).update(
             {PasswordReset.used_at: now},
-            synchronize_session=False,   # <- evita erro no SQLAlchemy 2.0
+            synchronize_session=False,
         )
 
         db.commit()
