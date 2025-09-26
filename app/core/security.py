@@ -1,21 +1,17 @@
 # app/core/security.py
+# Segurança:
+# - Hash/verify de senha com Passlib bcrypt (truncate_error=False)
+# - Truncamento seguro p/ 72 bytes (limite do bcrypt)
+# - JWT (PyJWT) e utilitário SHA-256
+
 from datetime import datetime, timedelta, timezone
-from passlib.context import CryptContext
+from passlib.hash import bcrypt as bcrypt_hash
 import jwt
 import hashlib
 from app.core.config import settings
 
-# Contexto com truncate_error=False
-pwd_context = CryptContext(
-    schemes=["bcrypt"],
-    deprecated="auto",
-    bcrypt__truncate_error=False,  # evita lançar erro >72 bytes
-)
-
 def _bcrypt_safe(password: str) -> str:
-    """
-    Normaliza senha para <=72 bytes UTF-8 antes do bcrypt.
-    """
+    """Normaliza para <= 72 bytes em UTF-8 (limite do bcrypt)."""
     if not isinstance(password, str):
         password = str(password)
     b = password.encode("utf-8")
@@ -24,14 +20,18 @@ def _bcrypt_safe(password: str) -> str:
         password = b.decode("utf-8", errors="ignore")
     return password
 
+# ===== Senhas =====
 def hash_password(password: str) -> str:
-    """Gera hash bcrypt com truncamento seguro."""
-    return pwd_context.hash(_bcrypt_safe(password))
+    """Hash com bcrypt (sem lançar erro >72 bytes)."""
+    safe = _bcrypt_safe(password)
+    return bcrypt_hash.using(ident="2b", rounds=12, truncate_error=False).hash(safe)
 
 def verify_password(password: str, password_hash: str) -> bool:
-    """Verifica senha vs hash com truncamento seguro."""
-    return pwd_context.verify(_bcrypt_safe(password), password_hash)
+    """Verify com bcrypt (sem lançar erro >72 bytes)."""
+    safe = _bcrypt_safe(password)
+    return bcrypt_hash.using(truncate_error=False).verify(safe, password_hash)
 
+# ===== JWT =====
 def create_access_token(subject: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.ACCESS_TOKEN_EXPIRES_MIN
@@ -42,5 +42,6 @@ def create_access_token(subject: str) -> str:
 def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
 
+# ===== SHA-256 =====
 def sha256_hex(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()

@@ -115,7 +115,7 @@ async def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)
 
         # sanitiza token para evitar chars invisíveis
         token_plain = payload.token.strip()
-        token_hash = sha256_hex(token_plain)
+        token_hash  = sha256_hex(token_plain)
 
         pr = (
             db.query(PasswordReset)
