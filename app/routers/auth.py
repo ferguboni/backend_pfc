@@ -115,7 +115,7 @@ async def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)
 
         # sanitiza token para evitar chars invisíveis
         token_plain = payload.token.strip()
-        token_hash  = sha256_hex(token_plain)
+        token_hash = sha256_hex(token_plain)
 
         pr = (
             db.query(PasswordReset)
@@ -131,7 +131,7 @@ async def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)
         if not user:
             raise HTTPException(status_code=400, detail="Usuário não encontrado")
 
-        # aplica nova senha
+        # aplica nova senha (hash já blindado contra >72B)
         user.password_hash = hash_password(payload.new_password)
         pr.used_at = now
 
@@ -142,7 +142,7 @@ async def reset_password(payload: ResetPasswordIn, db: Session = Depends(get_db)
             PasswordReset.id != pr.id,
         ).update(
             {PasswordReset.used_at: now},
-            synchronize_session=False,
+            synchronize_session=False,   # evita erro no SQLAlchemy 2.0
         )
 
         db.commit()

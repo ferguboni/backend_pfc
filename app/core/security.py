@@ -10,6 +10,7 @@ import jwt
 import hashlib
 from app.core.config import settings
 
+
 def _bcrypt_safe(password: str) -> str:
     """Normaliza para <= 72 bytes em UTF-8 (limite do bcrypt)."""
     if not isinstance(password, str):
@@ -20,16 +21,19 @@ def _bcrypt_safe(password: str) -> str:
         password = b.decode("utf-8", errors="ignore")
     return password
 
+
 # ===== Senhas =====
 def hash_password(password: str) -> str:
     """Hash com bcrypt (sem lançar erro >72 bytes)."""
     safe = _bcrypt_safe(password)
     return bcrypt_hash.using(ident="2b", rounds=12, truncate_error=False).hash(safe)
 
+
 def verify_password(password: str, password_hash: str) -> bool:
     """Verify com bcrypt (sem lançar erro >72 bytes)."""
     safe = _bcrypt_safe(password)
     return bcrypt_hash.using(truncate_error=False).verify(safe, password_hash)
+
 
 # ===== JWT =====
 def create_access_token(subject: str) -> str:
@@ -39,8 +43,10 @@ def create_access_token(subject: str) -> str:
     payload = {"sub": subject, "exp": expire}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
 
+
 def decode_token(token: str) -> dict:
     return jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+
 
 # ===== SHA-256 =====
 def sha256_hex(value: str) -> str:
